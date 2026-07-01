@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1e33" />
+  <title>Dashboard Cotizaciones · SANARÉ</title>
+  
+  <link rel="icon" href="assets/img/icon-192.png">
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer" />
+  
+  <link rel="stylesheet" href="assets/css/pre-cotizador.css" />
+  <style>
+    /* Dashboard specific overrides */
+    .dash-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .dash-card {
+      background: var(--bg2);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+    .dash-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+    .dash-card .title {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .dash-card .value {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    
+    .kam-list {
+      margin-top: 12px;
+      width: 100%;
+    }
+    .kam-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--stroke);
+      font-size: 14px;
+      color: var(--text);
+    }
+    .kam-item:last-child {
+      border-bottom: none;
+    }
+    .kam-item strong {
+      color: var(--primary);
+    }
+    
+    .loading-state {
+      padding: 40px;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 16px;
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--stroke);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <!-- 🔐 LOGIN OVERLAY -->
+  <div id="overlay">
+    <div class="login-card">
+      <img src="cotizador/SANARE_logo.png" alt="SANARÉ Logo" onerror="this.src='SANARE_logo.png';">
+      <h2>Acceso Dashboard</h2>
+      <p>Ingresa tus credenciales de KAM/Admin para ver las estadísticas.</p>
+      <div class="login-field">
+        <i class="fa-solid fa-user"></i>
+        <input id="user" class="login-input" placeholder="Usuario" type="text" autocomplete="username">
+      </div>
+      <div class="login-field">
+        <i class="fa-solid fa-lock"></i>
+        <input id="pass" class="login-input" placeholder="Contraseña" type="password" autocomplete="current-password">
+      </div>
+      <button onclick="checkLogin()" class="login-btn">Entrar al Dashboard</button>
+    </div>
+  </div>
+
+  <div class="pre-cotizador-container">
+    <!-- Topbar/Header -->
+    <header class="topbar-pre">
+      <div class="brand-pre">
+        <div class="logo-box">
+          <img src="cotizador/SANARE_logo.png" alt="SANARÉ Logo" onerror="this.src='SANARE_logo.png';">
+        </div>
+        <h1>Dashboard SANARÉ</h1>
+      </div>
+      <div class="topbar-actions">
+        <button id="toggleThemeBtn" class="toggle-theme-btn" type="button">
+          <i class="fa-solid fa-moon"></i>
+          <span class="theme-label">Claro</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="quote-shell">
+      <div class="quote-head">
+        <div>
+          <h2>Métricas de Cotizaciones</h2>
+          <div class="muted">Visualización en tiempo real de la base de datos Firestore</div>
+        </div>
+        <div class="quote-head-actions">
+          <button class="quote-mini-btn" id="btnRefresh" type="button">
+            <i class="fa-solid fa-rotate-right"></i>
+            <span>Actualizar</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="loadingView" class="loading-state">
+        <div class="loading-spinner"></div>
+        <div>Cargando datos desde Firebase...</div>
+      </div>
+
+      <div id="dashboardView" style="display: none;">
+        <div class="dash-grid">
+          <div class="dash-card">
+            <div class="title">Total Cotizaciones</div>
+            <div class="value" id="dashTotalCount">0</div>
+          </div>
+          
+          <div class="dash-card">
+            <div class="title">PDFs Generados</div>
+            <div class="value" id="dashPdfCount">0</div>
+          </div>
+
+          <div class="dash-card">
+            <div class="title">Imágenes Generadas</div>
+            <div class="value" id="dashImgCount">0</div>
+          </div>
+        </div>
+
+        <div class="quote-grid lower">
+          <!-- Ranking KAM -->
+          <div class="card-flat">
+            <div class="section-title">Cotizaciones por KAM</div>
+            <div class="kam-list" id="kamList">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Historial -->
+          <div class="card-flat" style="grid-column: span 2;">
+            <div class="section-title">Últimas 50 Cotizaciones</div>
+            <div class="table-wrap">
+              <table class="quote-table" id="historyTable">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>KAM</th>
+                    <th>Paciente</th>
+                    <th>Sede</th>
+                    <th>Exportado</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Firebase Compat Libraries -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  
+  <script src="assets/js/firebase-init.js"></script>
+  <script src="assets/js/dashboard-app.js"></script>
+</body>
+</html>
